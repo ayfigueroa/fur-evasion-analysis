@@ -36,6 +36,7 @@ all_changes as (
     before.title                                                    as title_before,
     case when before.title <> after.title then after.title end      as title_after,
     before.description <> after.description                         as desc_changed,
+    before.description                                              as desc_before,
     case when before.description <> after.description
          then after.description end                                 as desc_after
   from `etsy-data-warehouse-prod.etsy_shard_change_logs.listings_change_log` lcl
@@ -55,6 +56,7 @@ select
   ac.title_before,
   ac.title_after,
   ac.desc_changed,
+  ac.desc_before,
   ac.desc_after,
   case
     when sk.first_sk_decision is null                              then 'changed_sk_never_reviewed'
