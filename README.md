@@ -25,6 +25,33 @@ Notable: some listings made 60+ iterative edits, systematically testing which ke
 
 Common evasion pattern: removing explicit fur-trade terms from titles (e.g. `"Real fox tail"` → `"Upcycled tail"`, or adding `"taxidermy"` to exploit a known exclusion in the detection query).
 
+## High-priority evasion cases
+
+### Seller 1149490363 — systematic shop-wide relabeling, still active
+
+**Profile:** German-market seller of leather jackets, fur collars, and boots with real fox fur.
+
+**What they did:** Between July 21 and August 20, 2026 (starting ~3 weeks before the enforcement launch), they did a mechanical find-and-replace across 107 listings — swapping every instance of `"Real Fox Fur"`, `"Genuine Fox Fur"`, `"Natural Fox Fur"` with `"Faux Fur"`. A second cleanup pass on Aug 15–16 removed remaining `"Genuine"` qualifiers they missed the first time.
+
+**Why this matters:**
+- SK never reviewed any of their listings — the relabeling happened before SK got to them, so no enforcement action was taken
+- 67 listings are currently **active** on Etsy with faux fur titles
+- 40 listings are inactive (deactivated, likely waiting to see if the relabeling held)
+- 5 listings were removed by T&S anyway (caught by other signals)
+- Several listings still contain `"Real"` or `"Genuine"` in the title even after the swap (e.g. `"Silver Faux Collar detachable Men Women Genuine Real new Manufactured in France authentic"`)
+- One edit shows a typo mid-change: `"Foaux Fur"` — suggesting manual find-and-replace, not a bulk tool
+
+**Example title changes:**
+| Before | After |
+|---|---|
+| `Women's Leather Puffer Jacket with Real Fox Fur Hood` | `Women's Leather Puffer Jacket with Faux Fur Hood` |
+| `Genuine Fox Fur Collar Black Leather Bubble Jacket` | `Genuine Faux Fur Collar Black Leather Bubble Jacket` |
+| `Real Fox Fur Headband and Cuffs Set, Satin Lined` | `Faux Fur Headband and Cuffs Set, Satin Lined` |
+
+**Listings to review:** All listings under seller 1149490363 in `ayfigueroa.fur_content_changes` — particularly the 67 currently active ones.
+
+---
+
 ## SQL files
 
 | File | What it does |
@@ -33,6 +60,10 @@ Common evasion pattern: removing explicit fur-trade terms from titles (e.g. `"Re
 | `sql/02_copy_backlog.sql` | Copies `bhagen.fur_backlog_high_confidence` to your own dev dataset |
 | `sql/03_content_changes_summary.sql` | Summary: counts by change_timing bucket |
 | `sql/04_content_changes_full.sql` | Full change history — every edit, with before/after content |
+| `sql/05_days_from_launch_distribution.sql` | Edit timing distribution relative to SK review and Aug 11 launch |
+| `sql/06_word_swap_analysis.sql` | Words removed vs added in title changes, by change_timing |
+| `sql/07_seller_signals.sql` | Seller-level evasion signal table (one row per seller, 7-signal score) |
+| `sql/08_seller_change_breakdown.sql` | Seller-level view with listing/edit counts per timing group and listing state |
 
 ## Tables created
 
@@ -40,6 +71,8 @@ All written to `etsy-data-warehouse-dev.ayfigueroa`:
 
 - `fur_backlog_high_confidence` — copy of Brando's high-confidence listing universe (53,625 rows)
 - `fur_content_changes` — full change history for all listings that modified content post-Jan 2026
+- `fur_seller_signals` — seller-level evasion signals (7,212 sellers, evasion_signal_count 0–7)
+- `fur_seller_change_breakdown` — seller-level listing/edit counts by timing group + listing state
 
 ## Data sources
 
