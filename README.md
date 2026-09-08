@@ -25,6 +25,45 @@ Notable: some listings made 60+ iterative edits, systematically testing which ke
 
 Common evasion pattern: removing explicit fur-trade terms from titles (e.g. `"Real fox tail"` → `"Upcycled tail"`, or adding `"taxidermy"` to exploit a known exclusion in the detection query).
 
+## Evasion type breakdown
+
+Of all listings that changed their title, we classify each change by strategy:
+
+| Strategy | Description | Listings | Kendrick status |
+|---|---|---|---|
+| **real_to_neutral** | Removed fur/species/authenticity terms — title_after is clean | 1,107 | **Escaped detection entirely** |
+| **real_to_faux** | Added "faux" to title | 630 | Excluded by `has_faux_proximity`, but may still be real fur |
+| other_change | Title changed but no clear fur-signal manipulation | 4,086 | Mixed |
+
+The `real_to_neutral` group (1,107 listings) is the highest-priority gap: sellers removed words like "fur", "fox", "mink", "real", and "genuine" from titles without adding "faux". Because Kendrick's detection matches on title + tags text, and those terms are now absent, these listings are invisible to the detection query. The key insight: we only check `title_before` for fur signals and `title_after` for their absence — sellers removed the terms, they didn't add new ones.
+
+Breakdown by timing:
+- **504** changed before SK ever reviewed them (`changed_sk_never_reviewed`) — permanently escaped
+- **43** changed before their SK review date (`changed_before_sk`)
+- **560** changed after SK reviewed (`changed_after_sk`) — potentially re-evading
+
+## Non-backlog listings from known fur sellers
+
+Beyond the 53,625 high-confidence listings in the backlog, sellers confirmed as fur sellers have additional listings that **never appeared in Kendrick's detection** because they changed their titles before the snapshot.
+
+| Strategy | Listings | Sellers | Notes |
+|---|---|---|---|
+| **real_to_neutral** | 7,288 | 1,398 | Removed fur terms entirely — invisible to Kendrick |
+| **real_to_faux** | 5,260 | 1,047 | Added "faux" — excluded by `has_faux_proximity` by design |
+
+Monthly breakdown shows a clear spike in August 2026 (enforcement launch month):
+
+| Month | real_to_neutral listings | real_to_faux listings |
+|---|---|---|
+| Jun 2026 | 1,523 | 1,026 |
+| Jul 2026 | 1,845 | 1,575 |
+| **Aug 2026** | **3,813** | **2,689** |
+| Sep 2026 | 205 | 213 |
+
+The August spike (nearly 2× July) aligns with the Aug 11 enforcement launch — sellers responding in real time by stripping fur terms from listings not yet in the backlog.
+
+See `sql/10_non_backlog_evasion.sql` for the full query.
+
 ## High-priority evasion cases
 
 ### Seller 1149490363 — systematic shop-wide relabeling, still active
@@ -64,6 +103,8 @@ Common evasion pattern: removing explicit fur-trade terms from titles (e.g. `"Re
 | `sql/06_word_swap_analysis.sql` | Words removed vs added in title changes, by change_timing |
 | `sql/07_seller_signals.sql` | Seller-level evasion signal table (one row per seller, 7-signal score) |
 | `sql/08_seller_change_breakdown.sql` | Seller-level view with listing/edit counts per timing group and listing state |
+| `sql/09_evasion_type_classification.sql` | Classifies title changes as real_to_faux, real_to_neutral, or other; detail view of all neutral cases |
+| `sql/10_non_backlog_evasion.sql` | Same evasion classification for non-backlog listings from known fur sellers — listings that escaped Kendrick entirely |
 
 ## Tables created
 
