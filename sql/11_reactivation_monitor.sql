@@ -59,6 +59,7 @@ reactivated AS (
   WHERE lcl.source_ts_us >= '2026-01-01'  -- swap for INTERVAL 1 DAY in daily job
     AND lcl.before.state != 0             -- was not active
     AND lcl.after.state = 0              -- now active
+    AND l.state = 0                      -- still active today
     AND REGEXP_CONTAINS(LOWER(lcl.after.title),
         r'\b(fur|fox|mink|rabbit|raccoon|beaver|pelz|genuine|real)\b')
 )
@@ -148,6 +149,7 @@ ORDER BY was_in_kendrick_backlog DESC, listings DESC;
 --   WHERE lcl.source_ts_us >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 DAY)
 --     AND lcl.before.state != 0
 --     AND lcl.after.state = 0
+--     AND l.state = 0  -- still active today
 --     AND REGEXP_CONTAINS(LOWER(lcl.after.title),
 --         r'\b(fur|fox|mink|rabbit|raccoon|beaver|pelz|genuine|real)\b')
 -- )
