@@ -64,6 +64,29 @@ The August spike (nearly 2× July) aligns with the Aug 11 enforcement launch —
 
 See `sql/10_non_backlog_evasion.sql` for the full query.
 
+## Reactivation risk — listings going live again with fur titles
+
+Within the last 90 days of change log data, listings from known fur sellers that were inactive came back active with fur signals still in their titles:
+
+| Source | came_from_state | fur_signal_strength | listings | sellers |
+|---|---|---|---|---|
+| Kendrick backlog | DRAFT | strong_signal | 1,864 | 552 |
+| Kendrick backlog | INACTIVE | strong_signal | 1,670 | 217 |
+| Kendrick backlog | EXPIRED | strong_signal | 652 | 155 |
+| Kendrick backlog | SOLDOUT | strong_signal | 255 | 99 |
+| Non-backlog | INACTIVE | strong_signal | 1,463 | 215 |
+| Non-backlog | DRAFT | strong_signal | 1,445 | 425 |
+
+`strong_signal` = title has both a species/fur term AND an authenticity qualifier (e.g. "Real Fox Fur", "Genuine Mink Collar"). These are the highest-priority cases for enforcement.
+
+`came_from_state` tells how the listing returned:
+- **INACTIVE** — seller manually deactivated, then reactivated
+- **DRAFT** — never published or re-published from draft
+- **SOLDOUT** — ran out of stock, seller renewed
+- **EXPIRED** — 4-month Etsy listing window expired, seller paid to renew
+
+The `sql/11_reactivation_monitor.sql` query is designed to run as a **daily job**: replacing the date filter with a 1-day interval surfaces new reactivations as they happen, enabling proactive enforcement before buyers are exposed.
+
 ## High-priority evasion cases
 
 ### Seller 1149490363 — systematic shop-wide relabeling, still active
@@ -105,6 +128,7 @@ See `sql/10_non_backlog_evasion.sql` for the full query.
 | `sql/08_seller_change_breakdown.sql` | Seller-level view with listing/edit counts per timing group and listing state |
 | `sql/09_evasion_type_classification.sql` | Classifies title changes as real_to_faux, real_to_neutral, or other; detail view of all neutral cases |
 | `sql/10_non_backlog_evasion.sql` | Same evasion classification for non-backlog listings from known fur sellers — listings that escaped Kendrick entirely |
+| `sql/11_reactivation_monitor.sql` | Detects listings from known fur sellers that went inactive → active with fur still in title; designed to run as a daily monitoring job |
 
 ## Tables created
 
