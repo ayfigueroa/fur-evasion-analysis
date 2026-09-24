@@ -186,7 +186,7 @@ matched AS (
     REGEXP_CONTAINS(title_text,
       r'\b(?:faux|vegan|synthetic|fake|imitation|artificial)\s+(?:\w+\s+)?(?:fur|mink|fox|rabbit|chinchilla|sable|beaver|rac+oon|coyote|marten|wolf|lynx|bobcat|otter|badger|ermine|o?possum|muskrat|nutria|squirrel|hamster|[ck]ara[ck]ul|astra[ck]han|broadtail|orylag|wolverine|fitch|polecat|persian\s+lamb|kangaroo|tanuki|finn\s*coon|weasel|skunk|marmot|stoat)\b'
     )                                                                   AS has_faux_proximity,
-    REGEXP_CONTAINS(LOWER(COALESCE(description, '')), r'\b(?:faux|fake|synthetic|artificial|imitation)\s+fur\b') AS has_desc_faux_fur,
+    REGEXP_CONTAINS(LOWER(COALESCE(description, '')), r'\b(?:faux|fake|synthetic|artificial costume grade|artificial|imitation)\s+fur\b') AS has_desc_faux_fur,
     REGEXP_CONTAINS(LOWER(COALESCE(description, '')), r'\b(?:real|genuine)\s+fur\b')                             AS has_desc_real_fur,
     REGEXP_CONTAINS(title_text, r'\b(?:memorial|urn|cremation|pet\s+loss|rainbow\s+bridge|in\s+memory)\b')      AS has_pet_memorial,
     REGEXP_CONTAINS(title_tags_text, r'\b(sheep(?:skin)?|lamb(?:skin)?|shearling|toscana|reindeer|cow(?:hide)?|goat(?:skin)?|deer(?:skin)?|elk|bison|buffalo|alpaca|llama|yak|camel|ostrich|mouton|horse(?:hide)?|pig(?:skin)?|pheasants?)\b') AS has_byproduct_animal,
@@ -289,45 +289,54 @@ classified AS (
 -- ============================================================
 -- Final output: fur-trade reactivations, highest confidence first
 -- ============================================================
-SELECT
-  listing_id,
-  user_id,
-  reactivated_date,
-  CASE state_before
-    WHEN 1 THEN 'INACTIVE' WHEN 2 THEN 'SOLDOUT'
-    WHEN 3 THEN 'DRAFT'    WHEN 5 THEN 'EXPIRED'
-    ELSE CAST(state_before AS STRING)
-  END AS came_from_state,
-  reactivation_count,
-  title,
-  match_rule,
-  CASE
-    WHEN REGEXP_CONTAINS(COALESCE(match_rule, ''), r'EXCLUDED')         THEN 'EXCLUDED'
-    WHEN match_rule = 'EXPLICIT_FUR_DECLARATION'                         THEN 'HIGH'
-    WHEN match_rule = 'TIER1_WITH_FUR_CONTEXT'                           THEN 'HIGH'
-    WHEN match_rule = 'TIER1_STANDALONE'                                 THEN 'HIGH'
-    WHEN match_rule = 'TIER2_WITH_FUR_CONTEXT'
-      AND REGEXP_CONTAINS(LOWER(title), r'\b(?:fox|mink)\b')            THEN 'HIGH'
-    WHEN match_rule = 'TIER2_WITH_FUR_CONTEXT'
-      AND top_category IN ('clothing', 'accessories', 'bags_and_purses') THEN 'MEDIUM'
-    WHEN match_rule = 'TIER2_WITH_FUR_CONTEXT'                           THEN 'REVIEW'
-    WHEN match_rule = 'FUR_PRODUCT_TERM_ONLY'                            THEN 'REVIEW'
-    ELSE 'OTHER'
-  END AS confidence_band,
-  top_category,
-  full_path,
-  past_year_gms,
-  past_year_orders
-FROM classified
-WHERE is_fur_trade = TRUE
-  AND match_rule NOT IN ('SEAL_COMPOUND', 'TAXIDERMY_FUR_ANIMAL')
-  AND NOT (
-    match_rule = 'TIER1_STANDALONE'
-    AND NOT REGEXP_CONTAINS(COALESCE(full_path, ''),
-      r'jackets_and_coats|hats_and_caps|raw_materials\.leather|^home_and_living\.floor_and_rugs|\.dresses|\.vests|bags_and_purses|accessories\.(?:gloves_and_sleeves|collars|scarves)|^weddings')
-  )
-  AND NOT REGEXP_CONTAINS(COALESCE(full_path, ''), r'^electronics_and_accessories')
-  AND NOT REGEXP_CONTAINS(COALESCE(full_path, ''), r'^art_and_collectibles\.(prints|painting|photography)')
-ORDER BY
-  CASE confidence_band WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 WHEN 'REVIEW' THEN 3 ELSE 4 END,
-  past_year_gms DESC NULLS LAST;
+,
+final AS (
+  SELECT
+    listing_id,
+    user_id,
+    reactivated_date,
+    CASE state_before
+      WHEN 1 THEN 'INACTIVE' WHEN 2 THEN 'SOLDOUT'
+      WHEN 3 THEN 'DRAFT'    WHEN 5 THEN 'EXPIRED'
+      ELSE CAST(state_before AS STRING)
+    END AS came_from_state,
+    reactivation_count,
+    title,
+    match_rule,
+    CASE
+      WHEN REGEXP_CONTAINS(COALESCE(match_rule, ''), r'EXCLUDED')         THEN 'EXCLUDED'
+      WHEN match_rule = 'EXPLICIT_FUR_DECLARATION'                         THEN 'HIGH'
+      WHEN match_rule = 'TIER1_WITH_FUR_CONTEXT'                           THEN 'HIGH'
+      WHEN match_rule = 'TIER1_STANDALONE'                                 THEN 'HIGH'
+      WHEN match_rule = 'TIER2_WITH_FUR_CONTEXT'
+        AND REGEXP_CONTAINS(LOWER(title), r'\b(?:fox|mink)\b')            THEN 'HIGH'
+      WHEN match_rule = 'TIER2_WITH_FUR_CONTEXT'
+        AND top_category IN ('clothing', 'accessories', 'bags_and_purses') THEN 'MEDIUM'
+      WHEN match_rule = 'TIER2_WITH_FUR_CONTEXT'                           THEN 'REVIEW'
+      WHEN match_rule = 'FUR_PRODUCT_TERM_ONLY'                            THEN 'REVIEW'
+      ELSE 'OTHER'
+    END AS confidence_band,
+    top_category,
+    full_path,
+    past_year_gms,
+    past_year_orders,
+    is_fur_trade
+  FROM classified
+  WHERE is_fur_trade = TRUE
+    AND match_rule NOT IN ('SEAL_COMPOUND', 'TAXIDERMY_FUR_ANIMAL')
+    AND NOT (
+      match_rule = 'TIER1_STANDALONE'
+      AND NOT REGEXP_CONTAINS(COALESCE(full_path, ''),
+        r'jackets_and_coats|hats_and_caps|raw_materials\.leather|^home_and_living\.floor_and_rugs|\.dresses|\.vests|bags_and_purses|accessories\.(?:gloves_and_sleeves|collars|scarves)|^weddings')
+    )
+    AND NOT REGEXP_CONTAINS(COALESCE(full_path, ''), r'^electronics_and_accessories')
+    AND NOT REGEXP_CONTAINS(COALESCE(full_path, ''), r'^art_and_collectibles\.(prints|painting|photography)')
+  ORDER BY
+    CASE confidence_band WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 WHEN 'REVIEW' THEN 3 ELSE 4 END,
+    past_year_gms DESC NULLS LAST
+)
+
+SELECT * FROM final
+WHERE confidence_band = 'HIGH'
+-- AND listing_id = 1788376779
+;
