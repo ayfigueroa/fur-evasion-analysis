@@ -284,12 +284,11 @@ classified AS (
       ELSE FALSE
     END AS is_fur_trade
   FROM scored
-)
+),
 
 -- ============================================================
--- Final output: fur-trade reactivations, highest confidence first
+-- Step 8: High-confidence fur listings (confidence_band = HIGH)
 -- ============================================================
-,
 final AS (
   SELECT
     listing_id,
@@ -334,9 +333,41 @@ final AS (
   ORDER BY
     CASE confidence_band WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 WHEN 'REVIEW' THEN 3 ELSE 4 END,
     past_year_gms DESC NULLS LAST
+),
+
+high_listings AS (
+  SELECT * FROM final
+  WHERE confidence_band = 'HIGH'
+  -- AND listing_id = 1788376779
 )
 
-SELECT * FROM final
-WHERE confidence_band = 'HIGH'
--- AND listing_id = 1788376779
-;
+-- ============================================================
+-- Step 9: SK coverage gap — keep only listings SK hasn't reviewed
+--         since they came back live (or has never reviewed at all)
+--
+-- Eliminated: sk.latest_sk_review_date >= reactivated_date
+--             (SK already reviewed the current live version)
+-- Kept:       sk.latest_sk_review_date IS NULL (never reviewed)
+--             reactivated_date > latest_sk_review_date (SK saw old inactive version)
+-- ============================================================
+SELECT
+  f.listing_id,
+  f.user_id,
+  f.reactivated_date,
+  sk.first_sk_review_date,
+  DATE(sk.latest_sk_review_date)                                     AS latest_sk_review_date,
+  sk.in_scope_policy,
+  l.is_active,
+  DATE_DIFF(DATE(sk.latest_sk_review_date), DATE(f.reactivated_date), DAY) AS days_from_react_to_last_review
+FROM high_listings f
+LEFT JOIN (
+  SELECT *
+  FROM `etsy-data-warehouse-prod.rollups.tns_safety_kit_integration`
+  WHERE 1=1
+    AND content_type = 'listing'
+) sk
+  ON sk.reference_id = f.listing_id
+LEFT JOIN `etsy-data-warehouse-prod.listing_mart.listing_vw` l
+  ON f.listing_id = l.listing_id
+WHERE sk.latest_sk_review_date IS NULL
+   OR f.reactivated_date > DATE(sk.latest_sk_review_date);
